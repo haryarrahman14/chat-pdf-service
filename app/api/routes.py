@@ -24,6 +24,7 @@ from app.services.supabase_service import SupabaseService
 from app.services.ingestion_service import IngestionService
 from app.services.chat_service import ChatService
 from app.services.auth_service import AuthService
+from app.services.storage_service import StorageService
 from app.core.config import settings
 from app.core.dependencies import get_current_user_id
 import logging
@@ -38,6 +39,7 @@ db_service = SupabaseService()
 ingestion_service = IngestionService()
 chat_service = ChatService()
 auth_service = AuthService()
+storage_service = StorageService()
 
 
 # Authentication endpoints
@@ -155,16 +157,14 @@ async def upload_document(
                 message="Document already exists and is ready"
             )
 
-        # Save file locally
-        os.makedirs(settings.upload_dir, exist_ok=True)
+        # Upload file to storage (Supabase Storage or local)
         file_id = str(uuid.uuid4())
-        local_path = os.path.join(settings.upload_dir, f"{file_id}.pdf")
-
-        async with aiofiles.open(local_path, 'wb') as f:
-            await f.write(file_content)
-
-        # Upload to Supabase Storage (optional, using local for now)
-        storage_path = f"{user_id}/{file_id}.pdf"
+        storage_path, local_temp_path = await storage_service.upload_pdf(
+            file_content=file_content,
+            user_id=user_id,
+            file_id=file_id,
+            filename=file.filename
+        )
 
         # Create document record
         doc_create = DocumentCreate(
@@ -180,7 +180,8 @@ async def upload_document(
         background_tasks.add_task(
             ingestion_service.ingest_document,
             doc['id'],
-            local_path
+            local_temp_path,
+            cleanup_after=settings.use_supabase_storage  # Cleanup temp file if using Supabase Storage
         )
 
         return UploadResponse(

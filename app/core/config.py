@@ -34,9 +34,11 @@ class Settings(BaseSettings):
     debug: bool = True
     log_level: str = "INFO"
 
-    # Upload
+    # Upload & Storage
     max_upload_size_mb: int = 50
     upload_dir: str = "./uploads"
+    use_supabase_storage: bool = True
+    storage_bucket_name: str = "pdf-uploads"
 
     # Database
     database_url: Optional[str] = None

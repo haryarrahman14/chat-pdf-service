@@ -4,6 +4,7 @@ from typing import Dict, Any
 from app.services.pdf_service import PDFService
 from app.services.embedding_service import EmbeddingService
 from app.services.supabase_service import SupabaseService
+from app.services.storage_service import StorageService
 from app.models.schemas import DocumentStatus
 import logging
 
@@ -17,14 +18,21 @@ class IngestionService:
         self.pdf_service = PDFService()
         self.embedding_service = EmbeddingService()
         self.db_service = SupabaseService()
+        self.storage_service = StorageService()
 
-    async def ingest_document(self, doc_id: str, file_path: str) -> None:
+    async def ingest_document(
+        self,
+        doc_id: str,
+        file_path: str,
+        cleanup_after: bool = False
+    ) -> None:
         """
         Ingest a PDF document: parse, chunk, embed, and store
 
         Args:
             doc_id: Document ID from database
             file_path: Path to the PDF file
+            cleanup_after: Whether to delete the temp file after ingestion
         """
         try:
             # Update status to processing
@@ -99,6 +107,11 @@ class IngestionService:
             )
 
             raise
+
+        finally:
+            # Cleanup temp file if requested (when using Supabase Storage)
+            if cleanup_after:
+                await self.storage_service.cleanup_temp_file(file_path)
 
     async def reingest_document(self, doc_id: str, file_path: str) -> None:
         """
