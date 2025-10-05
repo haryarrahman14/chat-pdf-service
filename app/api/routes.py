@@ -13,13 +13,19 @@ from app.models.schemas import (
     DocumentCreate,
     DocumentResponse,
     DocumentStatus,
-    MessageRole
+    MessageRole,
+    UserRegister,
+    UserLogin,
+    TokenResponse,
+    UserResponse
 )
 from app.services.pdf_service import PDFService
 from app.services.supabase_service import SupabaseService
 from app.services.ingestion_service import IngestionService
 from app.services.chat_service import ChatService
+from app.services.auth_service import AuthService
 from app.core.config import settings
+from app.core.dependencies import get_current_user_id
 import logging
 
 logger = logging.getLogger(__name__)
@@ -31,13 +37,84 @@ pdf_service = PDFService()
 db_service = SupabaseService()
 ingestion_service = IngestionService()
 chat_service = ChatService()
+auth_service = AuthService()
+
+
+# Authentication endpoints
+@router.post("/auth/register", response_model=TokenResponse)
+async def register(user_data: UserRegister):
+    """
+    Register a new user using Supabase Auth
+
+    Args:
+        user_data: User registration data (email, password, optional full_name)
+
+    Returns:
+        JWT access token and user information
+    """
+    try:
+        # Register user with Supabase Auth
+        result = await auth_service.register_user(
+            email=user_data.email,
+            password=user_data.password,
+            full_name=user_data.full_name
+        )
+
+        user = result["user"]
+        session = result["session"]
+
+        return TokenResponse(
+            access_token=session.access_token,
+            user_id=user.id,
+            email=user.email
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error registering user: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error registering user: {str(e)}")
+
+
+@router.post("/auth/login", response_model=TokenResponse)
+async def login(credentials: UserLogin):
+    """
+    Login with email and password using Supabase Auth
+
+    Args:
+        credentials: User login credentials (email, password)
+
+    Returns:
+        JWT access token and user information
+    """
+    try:
+        # Login user with Supabase Auth
+        result = await auth_service.login_user(
+            email=credentials.email,
+            password=credentials.password
+        )
+
+        user = result["user"]
+        session = result["session"]
+
+        return TokenResponse(
+            access_token=session.access_token,
+            user_id=user.id,
+            email=user.email
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    except Exception as e:
+        logger.error(f"Error logging in: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error logging in: {str(e)}")
 
 
 @router.post("/upload", response_model=UploadResponse)
 async def upload_document(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    user_id: str = "00000000-0000-0000-0000-000000000000"  # TODO: Extract from JWT
+    user_id: str = Depends(get_current_user_id)
 ):
     """
     Upload a PDF document
@@ -122,7 +199,7 @@ async def upload_document(
 
 @router.get("/documents", response_model=ListDocumentsResponse)
 async def list_documents(
-    user_id: str = "00000000-0000-0000-0000-000000000000",  # TODO: Extract from JWT
+    user_id: str = Depends(get_current_user_id),
     status: Optional[DocumentStatus] = None,
     limit: int = 50,
     offset: int = 0
@@ -174,7 +251,7 @@ async def list_documents(
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, user_id: str = Depends(get_current_user_id)):
     """
     Chat with selected documents using RAG
 
@@ -211,7 +288,7 @@ async def chat(request: ChatRequest):
         if not conversation_id:
             # Create new conversation
             conv = await db_service.create_conversation(
-                user_id="00000000-0000-0000-0000-000000000000",  # TODO: Extract from JWT
+                user_id=user_id,
                 title=request.question[:100]  # Use question as title
             )
             conversation_id = conv['id']

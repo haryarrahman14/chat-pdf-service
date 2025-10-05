@@ -127,3 +127,33 @@ class MessageCreate(BaseModel):
     doc_ids: Optional[List[str]] = None
     citations: Optional[List[dict]] = None
     token_usage: Optional[dict] = None
+
+
+# Authentication Schemas
+class UserRegister(BaseModel):
+    """Schema for user registration"""
+    email: str = Field(..., pattern=r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
+    password: str = Field(..., min_length=8)
+    full_name: Optional[str] = None
+
+
+class UserLogin(BaseModel):
+    """Schema for user login"""
+    email: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    """Schema for token response"""
+    access_token: str
+    token_type: str = "bearer"
+    user_id: str
+    email: str
+
+
+class UserResponse(BaseModel):
+    """Schema for user response"""
+    id: str
+    email: str
+    full_name: Optional[str] = None
+    created_at: datetime
