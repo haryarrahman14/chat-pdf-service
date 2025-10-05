@@ -1,10 +1,13 @@
 """RAG chat service using OpenAI"""
 from typing import List, Dict, Any, Tuple
+import logging
 from openai import AsyncOpenAI
 from app.core.config import settings
 from app.services.embedding_service import EmbeddingService
 from app.services.supabase_service import SupabaseService
 from app.models.schemas import Citation
+
+logger = logging.getLogger(__name__)
 
 
 class ChatService:
@@ -40,13 +43,22 @@ class ChatService:
         # 1. Generate embedding for the question
         question_embedding = await self.embedding_service.generate_embedding(question)
 
-        # 2. Retrieve relevant chunks
+        # 2. Retrieve relevant chunks with multiple thresholds for better recall
         chunks = await self.db_service.search_chunks(
             query_embedding=question_embedding,
             doc_ids=doc_ids,
-            match_threshold=0.7,
+            match_threshold=0.5,  # Lowered from 0.7 for better recall
             match_count=max_chunks
         )
+
+        # Fallback: if no chunks found, try with even lower threshold
+        if not chunks:
+            chunks = await self.db_service.search_chunks(
+                query_embedding=question_embedding,
+                doc_ids=doc_ids,
+                match_threshold=0.3,
+                match_count=max_chunks
+            )
 
         if not chunks:
             return (
@@ -139,10 +151,6 @@ Please answer the question based only on the context provided above. Remember to
         for chunk in chunks:
             doc_id = chunk['doc_id']
 
-            # Skip if we've already cited this document
-            if doc_id in seen_docs:
-                continue
-
             seen_docs.add(doc_id)
 
             # Get document info
@@ -151,9 +159,7 @@ Please answer the question based only on the context provided above. Remember to
                 continue
 
             # Create citation
-            snippet = chunk['content'][:200]  # First 200 chars
-            if len(chunk['content']) > 200:
-                snippet += "..."
+            snippet = chunk['content'][:197] + "..." if len(chunk['content']) > 197 else chunk['content']
 
             citation = Citation(
                 doc_id=doc_id,
