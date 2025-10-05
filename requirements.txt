@@ -1,0 +1,25 @@
+# Core Framework
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+
+# OpenAI & Embeddings
+openai
+tiktoken
+
+# Vector DB & Storage
+supabase
+pgvector
+psycopg2-binary
+sqlalchemy
+
+# PDF Processing & RAG - simplified approach
+pypdf
+sentence-transformers
+
+# Background Tasks
+python-multipart
+python-dotenv
+httpx
+aiofiles
