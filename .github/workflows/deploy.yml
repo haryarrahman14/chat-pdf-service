@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -104,6 +104,27 @@ jobs:
           script: |
             # Navigate to application directory
             cd ${{ secrets.VPS_APP_PATH || '/opt/chat-pdf' }}
+
+            # Create .env file
+            cat > .env << EOF
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+            SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+            SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+            SUPABASE_SERVICE_KEY=${{ secrets.SUPABASE_SERVICE_KEY }}
+            ENVIRONMENT=production
+            DEBUG=False
+            LOG_LEVEL=INFO
+            CORS_ORIGINS=${{ secrets.CORS_ORIGINS || '*' }}
+            MAX_UPLOAD_SIZE_MB=50
+            UPLOAD_DIR=./uploads
+            USE_SUPABASE_STORAGE=True
+            STORAGE_BUCKET_NAME=pdf-uploads
+            EMBEDDING_MODEL=text-embedding-3-small
+            EMBEDDING_DIMENSIONS=1536
+            CHAT_MODEL=gpt-4o
+            CHAT_MODEL_MINI=gpt-4o-mini
+            MAX_CONTEXT_CHUNKS=10
+            EOF
 
             # Log in to GitHub Container Registry
             echo ${{ secrets.GITHUB_TOKEN }} | sudo docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
