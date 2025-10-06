@@ -1,4 +1,5 @@
 """PDF processing service"""
+
 import hashlib
 from typing import List, Tuple
 from pypdf import PdfReader
@@ -36,10 +37,7 @@ class PDFService:
 
     @staticmethod
     def chunk_text(
-        text: str,
-        chunk_size: int = 800,
-        overlap: int = 150,
-        min_chunk_size: int = 100
+        text: str, chunk_size: int = 800, overlap: int = 150, min_chunk_size: int = 100
     ) -> List[dict]:
         """
         Split text into overlapping chunks
@@ -62,7 +60,7 @@ class PDFService:
         current_page = None
 
         # Split text into segments by page markers
-        page_pattern = r'<!-- Page (\d+) -->\n'
+        page_pattern = r"<!-- Page (\d+) -->\n"
         segments = re.split(page_pattern, text)
 
         # Process segments (format is: ['', '1', 'text', '2', 'text', ...])
@@ -74,10 +72,9 @@ class PDFService:
                 page_num = int(segments[i])
                 page_text = segments[i + 1] if i + 1 < len(segments) else ""
 
-                page_boundaries.append({
-                    'page': page_num,
-                    'start_char': len(full_text_no_markers)
-                })
+                page_boundaries.append(
+                    {"page": page_num, "start_char": len(full_text_no_markers)}
+                )
                 full_text_no_markers += page_text + "\n\n"
 
         # Chunk the text with sliding window
@@ -91,7 +88,7 @@ class PDFService:
             if end < len(full_text_no_markers):
                 # Look for sentence endings within last 20% of chunk
                 search_start = int(end * 0.8)
-                sentence_endings = ['.', '!', '?', '\n']
+                sentence_endings = [".", "!", "?", "\n"]
 
                 best_break = end
                 for char in sentence_endings:
@@ -110,23 +107,25 @@ class PDFService:
                 page_end = None
 
                 for j, boundary in enumerate(page_boundaries):
-                    if boundary['start_char'] <= start:
-                        page_start = boundary['page']
-                    if boundary['start_char'] <= end:
-                        page_end = boundary['page']
+                    if boundary["start_char"] <= start:
+                        page_start = boundary["page"]
+                    if boundary["start_char"] <= end:
+                        page_end = boundary["page"]
                     else:
                         break
 
                 # Estimate token count (rough: chars / 4)
                 token_count = len(chunk_text) // 4
 
-                chunks.append({
-                    'content': chunk_text,
-                    'page_start': page_start,
-                    'page_end': page_end,
-                    'token_count': token_count,
-                    'section': None  # Can be enhanced with section detection
-                })
+                chunks.append(
+                    {
+                        "content": chunk_text,
+                        "page_start": page_start,
+                        "page_end": page_end,
+                        "token_count": token_count,
+                        "section": None,  # Can be enhanced with section detection
+                    }
+                )
 
                 chunk_id += 1
 

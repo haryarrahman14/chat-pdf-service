@@ -1,4 +1,5 @@
 """Authentication service using Supabase Auth"""
+
 import logging
 from typing import Optional, Dict, Any
 from supabase import create_client, Client
@@ -13,14 +14,11 @@ class AuthService:
     def __init__(self):
         self.client: Client = create_client(
             settings.supabase_url,
-            settings.supabase_anon_key  # Use anon key for auth operations
+            settings.supabase_anon_key,  # Use anon key for auth operations
         )
 
     async def register_user(
-        self,
-        email: str,
-        password: str,
-        full_name: Optional[str] = None
+        self, email: str, password: str, full_name: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Register a new user using Supabase Auth
@@ -41,21 +39,18 @@ class AuthService:
             if full_name:
                 user_metadata["full_name"] = full_name
 
-            response = self.client.auth.sign_up({
-                "email": email,
-                "password": password,
-                "options": {
-                    "data": user_metadata
+            response = self.client.auth.sign_up(
+                {
+                    "email": email,
+                    "password": password,
+                    "options": {"data": user_metadata},
                 }
-            })
+            )
 
             if not response.user:
                 raise ValueError("User registration failed")
 
-            return {
-                "user": response.user,
-                "session": response.session
-            }
+            return {"user": response.user, "session": response.session}
 
         except Exception as e:
             logger.error(f"Error registering user: {str(e)}")
@@ -76,18 +71,14 @@ class AuthService:
             Exception: If login fails
         """
         try:
-            response = self.client.auth.sign_in_with_password({
-                "email": email,
-                "password": password
-            })
+            response = self.client.auth.sign_in_with_password(
+                {"email": email, "password": password}
+            )
 
             if not response.user or not response.session:
                 raise ValueError("Invalid credentials")
 
-            return {
-                "user": response.user,
-                "session": response.session
-            }
+            return {"user": response.user, "session": response.session}
 
         except Exception as e:
             logger.error(f"Error logging in user: {str(e)}")
@@ -122,10 +113,7 @@ class AuthService:
         """
         try:
             response = self.client.auth.refresh_session(refresh_token)
-            return {
-                "user": response.user,
-                "session": response.session
-            }
+            return {"user": response.user, "session": response.session}
         except Exception as e:
             logger.error(f"Error refreshing session: {str(e)}")
             raise

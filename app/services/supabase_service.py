@@ -1,4 +1,5 @@
 """Supabase database service"""
+
 from typing import List, Optional, Dict, Any
 from supabase import create_client, Client
 from app.core.config import settings
@@ -12,7 +13,7 @@ class SupabaseService:
     def __init__(self):
         self.client: Client = create_client(
             settings.supabase_url,
-            settings.supabase_service_key  # Use service key to bypass RLS for workers
+            settings.supabase_service_key,  # Use service key to bypass RLS for workers
         )
 
     # Document operations
@@ -24,7 +25,7 @@ class SupabaseService:
             "filename": doc.filename,
             "storage_path": doc.storage_path,
             "status": DocumentStatus.PENDING.value,
-            "page_count": doc.page_count
+            "page_count": doc.page_count,
         }
 
         response = self.client.table("documents").insert(data).execute()
@@ -36,10 +37,7 @@ class SupabaseService:
         return response.data[0] if response.data else None
 
     async def update_document_status(
-        self,
-        doc_id: str,
-        status: DocumentStatus,
-        page_count: Optional[int] = None
+        self, doc_id: str, status: DocumentStatus, page_count: Optional[int] = None
     ) -> None:
         """Update document status"""
         data = {"status": status.value}
@@ -53,7 +51,7 @@ class SupabaseService:
         user_id: str,
         status: Optional[DocumentStatus] = None,
         limit: int = 50,
-        offset: int = 0
+        offset: int = 0,
     ) -> tuple[List[Dict[str, Any]], int]:
         """List documents for a user"""
         query = self.client.table("documents").select("*", count="exact")
@@ -70,9 +68,7 @@ class SupabaseService:
         return response.data, response.count or 0
 
     async def get_document_by_hash(
-        self,
-        user_id: str,
-        sha256: str
+        self, user_id: str, sha256: str
     ) -> Optional[Dict[str, Any]]:
         """Check if document with same hash exists for user"""
         response = (
@@ -98,7 +94,7 @@ class SupabaseService:
         query_embedding: List[float],
         doc_ids: List[str],
         match_threshold: float = 0.7,
-        match_count: int = 10
+        match_count: int = 10,
     ) -> List[Dict[str, Any]]:
         """
         Search for similar chunks using vector similarity
@@ -111,8 +107,8 @@ class SupabaseService:
                 "query_embedding": query_embedding,
                 "filter_doc_ids": doc_ids,
                 "match_threshold": match_threshold,
-                "match_count": match_count
-            }
+                "match_count": match_count,
+            },
         ).execute()
 
         return response.data if response.data else []
@@ -123,15 +119,10 @@ class SupabaseService:
 
     # Conversation operations
     async def create_conversation(
-        self,
-        user_id: str,
-        title: Optional[str] = None
+        self, user_id: str, title: Optional[str] = None
     ) -> Dict[str, Any]:
         """Create a new conversation"""
-        data = {
-            "user_id": user_id,
-            "title": title or "New Conversation"
-        }
+        data = {"user_id": user_id, "title": title or "New Conversation"}
 
         response = self.client.table("conversations").insert(data).execute()
         return response.data[0] if response.data else None
@@ -143,7 +134,7 @@ class SupabaseService:
         content: str,
         doc_ids: Optional[List[str]] = None,
         citations: Optional[List[dict]] = None,
-        token_usage: Optional[dict] = None
+        token_usage: Optional[dict] = None,
     ) -> Dict[str, Any]:
         """Create a new message in a conversation"""
         data = {
@@ -152,7 +143,7 @@ class SupabaseService:
             "content": content,
             "doc_ids": doc_ids,
             "citations": json.dumps(citations) if citations else None,
-            "token_usage": json.dumps(token_usage) if token_usage else None
+            "token_usage": json.dumps(token_usage) if token_usage else None,
         }
 
         response = self.client.table("messages").insert(data).execute()
@@ -164,30 +155,21 @@ class SupabaseService:
         bucket_name: str,
         file_path: str,
         file_content: bytes,
-        content_type: str = "application/pdf"
+        content_type: str = "application/pdf",
     ) -> str:
         """Upload file to Supabase Storage"""
         response = self.client.storage.from_(bucket_name).upload(
-            file_path,
-            file_content,
-            {
-                "content-type": content_type,
-                "upsert": "false"
-            }
+            file_path, file_content, {"content-type": content_type, "upsert": "false"}
         )
 
         return file_path
 
     async def get_signed_url(
-        self,
-        bucket_name: str,
-        file_path: str,
-        expires_in: int = 3600
+        self, bucket_name: str, file_path: str, expires_in: int = 3600
     ) -> str:
         """Get signed URL for file access"""
         response = self.client.storage.from_(bucket_name).create_signed_url(
-            file_path,
-            expires_in
+            file_path, expires_in
         )
 
         return response.get("signedURL", "")

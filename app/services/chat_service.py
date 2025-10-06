@@ -1,4 +1,5 @@
 """RAG chat service using OpenAI"""
+
 from typing import List, Dict, Any, Tuple
 import logging
 from openai import AsyncOpenAI
@@ -23,7 +24,7 @@ class ChatService:
         question: str,
         doc_ids: List[str],
         model: str = None,
-        max_chunks: int = None
+        max_chunks: int = None,
     ) -> Tuple[str, List[Citation], Dict[str, int]]:
         """
         Process a chat query with RAG
@@ -48,7 +49,7 @@ class ChatService:
             query_embedding=question_embedding,
             doc_ids=doc_ids,
             match_threshold=0.5,  # Lowered from 0.7 for better recall
-            match_count=max_chunks
+            match_count=max_chunks,
         )
 
         # Fallback: if no chunks found, try with even lower threshold
@@ -57,29 +58,27 @@ class ChatService:
                 query_embedding=question_embedding,
                 doc_ids=doc_ids,
                 match_threshold=0.3,
-                match_count=max_chunks
+                match_count=max_chunks,
             )
 
         if not chunks:
             return (
                 "I don't have enough information in the selected documents to answer that question.",
                 [],
-                {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+                {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
             )
 
         # 3. Build context from retrieved chunks
         context_parts = []
         for i, chunk in enumerate(chunks, 1):
             page_info = ""
-            if chunk.get('page_start'):
-                if chunk.get('page_end') and chunk['page_end'] != chunk['page_start']:
+            if chunk.get("page_start"):
+                if chunk.get("page_end") and chunk["page_end"] != chunk["page_start"]:
                     page_info = f" (Pages {chunk['page_start']}-{chunk['page_end']})"
                 else:
                     page_info = f" (Page {chunk['page_start']})"
 
-            context_parts.append(
-                f"[Source {i}]{page_info}:\n{chunk['content']}\n"
-            )
+            context_parts.append(f"[Source {i}]{page_info}:\n{chunk['content']}\n")
 
         context = "\n".join(context_parts)
 
@@ -111,10 +110,10 @@ Please answer the question based only on the context provided above. Remember to
             model=model,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
+                {"role": "user", "content": user_prompt},
             ],
             temperature=0.3,  # Lower temperature for more factual responses
-            max_tokens=1000
+            max_tokens=1000,
         )
 
         answer = response.choices[0].message.content
@@ -123,7 +122,7 @@ Please answer the question based only on the context provided above. Remember to
         token_usage = {
             "prompt_tokens": response.usage.prompt_tokens,
             "completion_tokens": response.usage.completion_tokens,
-            "total_tokens": response.usage.total_tokens
+            "total_tokens": response.usage.total_tokens,
         }
 
         # 8. Build citations from chunks
@@ -132,9 +131,7 @@ Please answer the question based only on the context provided above. Remember to
         return answer, citations, token_usage
 
     async def _build_citations(
-        self,
-        chunks: List[Dict[str, Any]],
-        doc_ids: List[str]
+        self, chunks: List[Dict[str, Any]], doc_ids: List[str]
     ) -> List[Citation]:
         """Build citation objects from chunks"""
         citations = []
@@ -149,7 +146,7 @@ Please answer the question based only on the context provided above. Remember to
 
         # Build citations from chunks
         for chunk in chunks:
-            doc_id = chunk['doc_id']
+            doc_id = chunk["doc_id"]
 
             seen_docs.add(doc_id)
 
@@ -159,14 +156,18 @@ Please answer the question based only on the context provided above. Remember to
                 continue
 
             # Create citation
-            snippet = chunk['content'][:197] + "..." if len(chunk['content']) > 197 else chunk['content']
+            snippet = (
+                chunk["content"][:197] + "..."
+                if len(chunk["content"]) > 197
+                else chunk["content"]
+            )
 
             citation = Citation(
                 doc_id=doc_id,
-                filename=doc['filename'],
-                page_start=chunk.get('page_start'),
-                page_end=chunk.get('page_end'),
-                snippet=snippet
+                filename=doc["filename"],
+                page_start=chunk.get("page_start"),
+                page_end=chunk.get("page_end"),
+                snippet=snippet,
             )
 
             citations.append(citation)

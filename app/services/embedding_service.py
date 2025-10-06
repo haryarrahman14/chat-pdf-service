@@ -1,4 +1,5 @@
 """Embedding generation service using OpenAI"""
+
 from typing import List
 from openai import AsyncOpenAI
 from app.core.config import settings
@@ -23,17 +24,13 @@ class EmbeddingService:
             List of floats representing the embedding vector
         """
         response = await self.client.embeddings.create(
-            model=self.model,
-            input=text,
-            dimensions=self.dimensions
+            model=self.model, input=text, dimensions=self.dimensions
         )
 
         return response.data[0].embedding
 
     async def generate_embeddings_batch(
-        self,
-        texts: List[str],
-        batch_size: int = 100
+        self, texts: List[str], batch_size: int = 100
     ) -> List[List[float]]:
         """
         Generate embeddings for multiple texts in batches
@@ -49,12 +46,10 @@ class EmbeddingService:
 
         # Process in batches
         for i in range(0, len(texts), batch_size):
-            batch = texts[i:i + batch_size]
+            batch = texts[i : i + batch_size]
 
             response = await self.client.embeddings.create(
-                model=self.model,
-                input=batch,
-                dimensions=self.dimensions
+                model=self.model, input=batch, dimensions=self.dimensions
             )
 
             # Extract embeddings in order

@@ -1,4 +1,5 @@
 """Main FastAPI application"""
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router
@@ -8,7 +9,7 @@ import logging
 # Configure logging
 logging.basicConfig(
     level=getattr(logging, settings.log_level),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,7 @@ app = FastAPI(
     title="Chat PDF API",
     description="RAG-based chat system for PDF documents with OpenAI",
     version="1.0.0",
-    debug=settings.debug
+    debug=settings.debug,
 )
 
 # Add CORS middleware
@@ -53,18 +54,10 @@ async def shutdown_event():
 @app.get("/")
 async def root():
     """Root endpoint"""
-    return {
-        "message": "Chat PDF API",
-        "version": "1.0.0",
-        "docs": "/docs"
-    }
+    return {"message": "Chat PDF API", "version": "1.0.0", "docs": "/docs"}
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "app.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=settings.debug
-    )
+
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=settings.debug)

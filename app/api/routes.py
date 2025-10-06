@@ -1,4 +1,5 @@
 """API routes for Chat PDF application"""
+
 from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Depends
 from typing import Optional
 import uuid
@@ -13,7 +14,7 @@ from app.models.schemas import (
     MessageRole,
     UserRegister,
     UserLogin,
-    TokenResponse
+    TokenResponse,
 )
 from app.services.pdf_service import PDFService
 from app.services.supabase_service import SupabaseService
@@ -55,16 +56,14 @@ async def register(user_data: UserRegister):
         result = await auth_service.register_user(
             email=user_data.email,
             password=user_data.password,
-            full_name=user_data.full_name
+            full_name=user_data.full_name,
         )
 
         user = result["user"]
         session = result["session"]
 
         return TokenResponse(
-            access_token=session.access_token,
-            user_id=user.id,
-            email=user.email
+            access_token=session.access_token, user_id=user.id, email=user.email
         )
 
     except ValueError as e:
@@ -88,17 +87,14 @@ async def login(credentials: UserLogin):
     try:
         # Login user with Supabase Auth
         result = await auth_service.login_user(
-            email=credentials.email,
-            password=credentials.password
+            email=credentials.email, password=credentials.password
         )
 
         user = result["user"]
         session = result["session"]
 
         return TokenResponse(
-            access_token=session.access_token,
-            user_id=user.id,
-            email=user.email
+            access_token=session.access_token, user_id=user.id, email=user.email
         )
 
     except ValueError as e:
@@ -112,7 +108,7 @@ async def login(credentials: UserLogin):
 async def upload_document(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    user_id: str = Depends(get_current_user_id)
+    user_id: str = Depends(get_current_user_id),
 ):
     """
     Upload a PDF document
@@ -126,7 +122,7 @@ async def upload_document(
     """
     try:
         # Validate file type
-        if not file.filename.endswith('.pdf'):
+        if not file.filename.endswith(".pdf"):
             raise HTTPException(status_code=422, detail="Only PDF files are supported")
 
         # Read file content
@@ -137,7 +133,7 @@ async def upload_document(
         if file_size_mb > settings.max_upload_size_mb:
             raise HTTPException(
                 status_code=413,
-                detail=f"File size exceeds maximum of {settings.max_upload_size_mb}MB"
+                detail=f"File size exceeds maximum of {settings.max_upload_size_mb}MB",
             )
 
         # Compute SHA256 hash
@@ -145,12 +141,12 @@ async def upload_document(
 
         # Check for duplicate
         existing_doc = await db_service.get_document_by_hash(user_id, sha256)
-        if existing_doc and existing_doc['status'] == DocumentStatus.READY.value:
+        if existing_doc and existing_doc["status"] == DocumentStatus.READY.value:
             return UploadResponse(
-                doc_id=existing_doc['id'],
+                doc_id=existing_doc["id"],
                 status=DocumentStatus.READY,
-                filename=existing_doc['filename'],
-                message="Document already exists and is ready"
+                filename=existing_doc["filename"],
+                message="Document already exists and is ready",
             )
 
         # Upload file to storage (Supabase Storage or local)
@@ -159,7 +155,7 @@ async def upload_document(
             file_content=file_content,
             user_id=user_id,
             file_id=file_id,
-            filename=file.filename
+            filename=file.filename,
         )
 
         # Create document record
@@ -167,7 +163,7 @@ async def upload_document(
             user_id=user_id,
             sha256=sha256,
             filename=file.filename,
-            storage_path=storage_path
+            storage_path=storage_path,
         )
 
         doc = await db_service.create_document(doc_create)
@@ -175,23 +171,25 @@ async def upload_document(
         # Queue background ingestion
         background_tasks.add_task(
             ingestion_service.ingest_document,
-            doc['id'],
+            doc["id"],
             local_temp_path,
-            cleanup_after=settings.use_supabase_storage  # Cleanup temp file if using Supabase Storage
+            cleanup_after=settings.use_supabase_storage,  # Cleanup temp file if using Supabase Storage
         )
 
         return UploadResponse(
-            doc_id=doc['id'],
+            doc_id=doc["id"],
             status=DocumentStatus.PENDING,
             filename=file.filename,
-            message="File uploaded successfully. Ingestion started."
+            message="File uploaded successfully. Ingestion started.",
         )
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error uploading document: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error uploading document: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error uploading document: {str(e)}"
+        )
 
 
 @router.get("/documents", response_model=ListDocumentsResponse)
@@ -199,7 +197,7 @@ async def list_documents(
     user_id: str = Depends(get_current_user_id),
     status: Optional[DocumentStatus] = None,
     limit: int = 50,
-    offset: int = 0
+    offset: int = 0,
 ):
     """
     List documents for a user
@@ -215,43 +213,36 @@ async def list_documents(
     """
     try:
         documents, total = await db_service.list_documents(
-            user_id=user_id,
-            status=status,
-            limit=limit,
-            offset=offset
+            user_id=user_id, status=status, limit=limit, offset=offset
         )
 
         doc_responses = [
             DocumentResponse(
-                id=doc['id'],
-                user_id=doc['user_id'],
-                sha256=doc['sha256'],
-                filename=doc['filename'],
-                status=DocumentStatus(doc['status']),
-                page_count=doc.get('page_count'),
-                created_at=doc['created_at'],
-                updated_at=doc['updated_at']
+                id=doc["id"],
+                user_id=doc["user_id"],
+                sha256=doc["sha256"],
+                filename=doc["filename"],
+                status=DocumentStatus(doc["status"]),
+                page_count=doc.get("page_count"),
+                created_at=doc["created_at"],
+                updated_at=doc["updated_at"],
             )
             for doc in documents
         ]
 
         return ListDocumentsResponse(
-            documents=doc_responses,
-            total=total,
-            limit=limit,
-            offset=offset
+            documents=doc_responses, total=total, limit=limit, offset=offset
         )
 
     except Exception as e:
         logger.error(f"Error listing documents: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error listing documents: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error listing documents: {str(e)}"
+        )
 
 
 @router.get("/documents/{doc_id}", response_model=DocumentResponse)
-async def get_document(
-    doc_id: str,
-    user_id: str = Depends(get_current_user_id)
-):
+async def get_document(doc_id: str, user_id: str = Depends(get_current_user_id)):
     """
     Get document details by ID
 
@@ -268,18 +259,18 @@ async def get_document(
         if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
 
-        if doc['user_id'] != user_id:
+        if doc["user_id"] != user_id:
             raise HTTPException(status_code=403, detail="Access denied")
 
         return DocumentResponse(
-            id=doc['id'],
-            user_id=doc['user_id'],
-            sha256=doc['sha256'],
-            filename=doc['filename'],
-            status=DocumentStatus(doc['status']),
-            page_count=doc.get('page_count'),
-            created_at=doc['created_at'],
-            updated_at=doc['updated_at']
+            id=doc["id"],
+            user_id=doc["user_id"],
+            sha256=doc["sha256"],
+            filename=doc["filename"],
+            status=DocumentStatus(doc["status"]),
+            page_count=doc.get("page_count"),
+            created_at=doc["created_at"],
+            updated_at=doc["updated_at"],
         )
 
     except HTTPException:
@@ -306,20 +297,17 @@ async def chat(request: ChatRequest, user_id: str = Depends(get_current_user_id)
             doc = await db_service.get_document(doc_id)
             if not doc:
                 raise HTTPException(
-                    status_code=404,
-                    detail=f"Document {doc_id} not found"
+                    status_code=404, detail=f"Document {doc_id} not found"
                 )
-            if doc['status'] != DocumentStatus.READY.value:
+            if doc["status"] != DocumentStatus.READY.value:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Document {doc_id} is not ready (status: {doc['status']})"
+                    detail=f"Document {doc_id} is not ready (status: {doc['status']})",
                 )
 
         # Process chat
         answer, citations, token_usage = await chat_service.chat(
-            question=request.question,
-            doc_ids=request.doc_ids,
-            model=request.model
+            question=request.question, doc_ids=request.doc_ids, model=request.model
         )
 
         # Create or get conversation
@@ -327,17 +315,16 @@ async def chat(request: ChatRequest, user_id: str = Depends(get_current_user_id)
         if not conversation_id:
             # Create new conversation
             conv = await db_service.create_conversation(
-                user_id=user_id,
-                title=request.question[:100]  # Use question as title
+                user_id=user_id, title=request.question[:100]  # Use question as title
             )
-            conversation_id = conv['id']
+            conversation_id = conv["id"]
 
         # Save user message
         user_msg = await db_service.create_message(
             conversation_id=conversation_id,
             role=MessageRole.USER.value,
             content=request.question,
-            doc_ids=request.doc_ids
+            doc_ids=request.doc_ids,
         )
 
         # Save assistant message
@@ -346,15 +333,15 @@ async def chat(request: ChatRequest, user_id: str = Depends(get_current_user_id)
             role=MessageRole.ASSISTANT.value,
             content=answer,
             citations=[citation.dict() for citation in citations],
-            token_usage=token_usage
+            token_usage=token_usage,
         )
 
         return ChatResponse(
             answer=answer,
             citations=citations,
             conversation_id=conversation_id,
-            message_id=assistant_msg['id'],
-            token_usage=token_usage
+            message_id=assistant_msg["id"],
+            token_usage=token_usage,
         )
 
     except HTTPException:

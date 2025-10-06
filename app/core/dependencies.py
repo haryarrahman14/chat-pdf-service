@@ -1,4 +1,5 @@
 """FastAPI dependencies for authentication using Supabase Auth"""
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.services.auth_service import AuthService
@@ -9,7 +10,7 @@ auth_service = AuthService()
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> dict:
     """
     Dependency to extract and validate user from Supabase JWT token
@@ -36,9 +37,7 @@ async def get_current_user(
     return user
 
 
-async def get_current_user_id(
-    current_user: dict = Depends(get_current_user)
-) -> str:
+async def get_current_user_id(current_user: dict = Depends(get_current_user)) -> str:
     """
     Dependency to extract user_id from Supabase Auth user
 

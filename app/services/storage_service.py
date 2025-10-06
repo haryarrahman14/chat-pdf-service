@@ -1,4 +1,5 @@
 """Storage service for managing file uploads and downloads"""
+
 from typing import Optional
 import tempfile
 import os
@@ -19,11 +20,7 @@ class StorageService:
         self.use_supabase_storage = settings.use_supabase_storage
 
     async def upload_pdf(
-        self,
-        file_content: bytes,
-        user_id: str,
-        file_id: str,
-        filename: str
+        self, file_content: bytes, user_id: str, file_id: str, filename: str
     ) -> tuple[str, str]:
         """
         Upload PDF file to storage
@@ -48,7 +45,7 @@ class StorageService:
                     bucket_name=self.bucket_name,
                     file_path=storage_path,
                     file_content=file_content,
-                    content_type="application/pdf"
+                    content_type="application/pdf",
                 )
                 logger.info(f"Uploaded file to Supabase Storage: {storage_path}")
             except Exception as e:
@@ -58,14 +55,14 @@ class StorageService:
             # Also save to temp file for immediate processing
             temp_dir = tempfile.gettempdir()
             local_temp_path = os.path.join(temp_dir, f"{file_id}.pdf")
-            with open(local_temp_path, 'wb') as f:
+            with open(local_temp_path, "wb") as f:
                 f.write(file_content)
 
         else:
             # Save to local storage
             os.makedirs(settings.upload_dir, exist_ok=True)
             local_temp_path = os.path.join(settings.upload_dir, f"{file_id}.pdf")
-            with open(local_temp_path, 'wb') as f:
+            with open(local_temp_path, "wb") as f:
                 f.write(file_content)
             logger.info(f"Saved file locally: {local_temp_path}")
 
@@ -87,7 +84,7 @@ class StorageService:
                 signed_url = await self.db_service.get_signed_url(
                     bucket_name=self.bucket_name,
                     file_path=storage_path,
-                    expires_in=3600  # 1 hour
+                    expires_in=3600,  # 1 hour
                 )
 
                 # Download file content
@@ -97,11 +94,11 @@ class StorageService:
                     file_content = response.content
 
                 # Save to temp file
-                file_id = storage_path.split('/')[-1].replace('.pdf', '')
+                file_id = storage_path.split("/")[-1].replace(".pdf", "")
                 temp_dir = tempfile.gettempdir()
                 local_path = os.path.join(temp_dir, f"{file_id}.pdf")
 
-                with open(local_path, 'wb') as f:
+                with open(local_path, "wb") as f:
                     f.write(file_content)
 
                 logger.info(f"Downloaded file from Supabase Storage to: {local_path}")
@@ -113,7 +110,7 @@ class StorageService:
 
         else:
             # Local storage - construct path
-            file_id = storage_path.split('/')[-1].replace('.pdf', '')
+            file_id = storage_path.split("/")[-1].replace(".pdf", "")
             local_path = os.path.join(settings.upload_dir, f"{file_id}.pdf")
 
             if not os.path.exists(local_path):
@@ -131,8 +128,7 @@ class StorageService:
         if self.use_supabase_storage:
             try:
                 await self.db_service.delete_file(
-                    bucket_name=self.bucket_name,
-                    file_path=storage_path
+                    bucket_name=self.bucket_name, file_path=storage_path
                 )
                 logger.info(f"Deleted file from Supabase Storage: {storage_path}")
             except Exception as e:
@@ -140,7 +136,7 @@ class StorageService:
                 raise
         else:
             # Local storage
-            file_id = storage_path.split('/')[-1].replace('.pdf', '')
+            file_id = storage_path.split("/")[-1].replace(".pdf", "")
             local_path = os.path.join(settings.upload_dir, f"{file_id}.pdf")
 
             if os.path.exists(local_path):
@@ -148,9 +144,7 @@ class StorageService:
                 logger.info(f"Deleted local file: {local_path}")
 
     async def get_file_url(
-        self,
-        storage_path: str,
-        expires_in: int = 3600
+        self, storage_path: str, expires_in: int = 3600
     ) -> Optional[str]:
         """
         Get a signed URL for file access
@@ -167,7 +161,7 @@ class StorageService:
                 signed_url = await self.db_service.get_signed_url(
                     bucket_name=self.bucket_name,
                     file_path=storage_path,
-                    expires_in=expires_in
+                    expires_in=expires_in,
                 )
                 return signed_url
             except Exception as e:
