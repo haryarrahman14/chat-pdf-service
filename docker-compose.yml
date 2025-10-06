@@ -1,0 +1,46 @@
+# Default Docker Compose - Production
+# For development: use docker-compose -f docker-compose.dev.yml up
+# For production: use docker-compose -f docker-compose.prod.yml up
+
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chat-pdf-api
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - DEBUG=${DEBUG:-False}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
+      - EMBEDDING_DIMENSIONS=${EMBEDDING_DIMENSIONS:-1536}
+      - CHAT_MODEL=${CHAT_MODEL:-gpt-4o-mini}
+      - CHAT_MODEL_MINI=${CHAT_MODEL_MINI:-gpt-4o-mini}
+      - MAX_CONTEXT_CHUNKS=${MAX_CONTEXT_CHUNKS:-10}
+      - MAX_UPLOAD_SIZE_MB=${MAX_UPLOAD_SIZE_MB:-50}
+      - USE_SUPABASE_STORAGE=${USE_SUPABASE_STORAGE:-True}
+      - STORAGE_BUCKET_NAME=${STORAGE_BUCKET_NAME:-pdf-uploads}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+    volumes:
+      - ./uploads:/app/uploads
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    networks:
+      - chat-pdf-network
+
+networks:
+  chat-pdf-network:
+    driver: bridge

@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: chat-pdf-api-dev
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=True
+      - LOG_LEVEL=DEBUG
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
+      - EMBEDDING_DIMENSIONS=${EMBEDDING_DIMENSIONS:-1536}
+      - CHAT_MODEL=${CHAT_MODEL:-gpt-4o-mini}
+      - CHAT_MODEL_MINI=${CHAT_MODEL_MINI:-gpt-4o-mini}
+      - MAX_CONTEXT_CHUNKS=${MAX_CONTEXT_CHUNKS:-10}
+      - MAX_UPLOAD_SIZE_MB=${MAX_UPLOAD_SIZE_MB:-50}
+      - USE_SUPABASE_STORAGE=${USE_SUPABASE_STORAGE:-False}
+      - STORAGE_BUCKET_NAME=${STORAGE_BUCKET_NAME:-pdf-uploads}
+      - CORS_ORIGINS=*
+    volumes:
+      # Mount source code for hot reload
+      - ./app:/app/app
+      - ./mcp_server:/app/mcp_server
+      - ./uploads:/app/uploads
+      # Cache Python packages
+      - pip-cache:/root/.cache/pip
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    networks:
+      - chat-pdf-dev-network
+    stdin_open: true
+    tty: true
+
+volumes:
+  pip-cache:
+
+networks:
+  chat-pdf-dev-network:
+    driver: bridge

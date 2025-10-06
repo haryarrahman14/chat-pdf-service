@@ -25,7 +25,7 @@ wheels/
 
 # Environment
 .env
-.env.local
+.env.*
 
 # MCP Config
 mcp_server/config.json
