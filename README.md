@@ -54,10 +54,36 @@ cp .env.example .env
 
 Required environment variables:
 
-- `OPENAI_API_KEY`: Your OpenAI API key
-- `SUPABASE_URL`: Your Supabase project URL
-- `SUPABASE_ANON_KEY`: Supabase anon/public key
-- `SUPABASE_SERVICE_KEY`: Supabase service role key (for server operations)
+```env
+# OpenAI Configuration
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Supabase Configuration
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your_anon_key_here
+SUPABASE_SERVICE_KEY=your_service_role_key_here
+
+# App Configuration
+ENVIRONMENT=development
+DEBUG=True
+LOG_LEVEL=INFO
+CORS_ORIGINS=*
+
+# Upload & Storage Configuration
+MAX_UPLOAD_SIZE_MB=50
+UPLOAD_DIR=./uploads
+USE_SUPABASE_STORAGE=True
+STORAGE_BUCKET_NAME=pdf-uploads
+
+# Embedding Configuration
+EMBEDDING_MODEL=text-embedding-3-small
+EMBEDDING_DIMENSIONS=1536
+
+# Chat Configuration
+CHAT_MODEL=gpt-4o
+CHAT_MODEL_MINI=gpt-4o-mini
+MAX_CONTEXT_CHUNKS=10
+```
 
 ### 3. Setup Supabase Database
 
@@ -266,7 +292,7 @@ Key settings in `.env`:
 All tables have RLS policies enforcing `user_id = auth.uid()`:
 
 - Users can only access their own documents, chunks, conversations, and messages
-- Service role key bypasses RLS for background workers
+- Service role key bypasses RLS for server operations
 
 ### Best Practices
 

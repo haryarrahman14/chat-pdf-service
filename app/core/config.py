@@ -26,19 +26,11 @@ class Settings(BaseSettings):
     supabase_anon_key: str
     supabase_service_key: str
 
-    # LlamaParse (optional)
-    llama_cloud_api_key: Optional[str] = None
-
     # App
     environment: str = "development"
     debug: bool = True
     log_level: str = "INFO"
     cors_origins: str = "*"  # Comma-separated list of allowed origins
-    api_key: Optional[str] = None  # Optional API key for authentication
-
-    # Workers & Performance
-    workers: int = 2
-    worker_timeout: int = 120
 
     # Upload & Storage
     max_upload_size_mb: int = 50
