@@ -1,14 +1,11 @@
 """API routes for Chat PDF application"""
 from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Depends
 from typing import Optional
-import os
 import uuid
-import aiofiles
 from app.models.schemas import (
     ChatRequest,
     ChatResponse,
     UploadResponse,
-    ListDocumentsRequest,
     ListDocumentsResponse,
     DocumentCreate,
     DocumentResponse,
@@ -16,8 +13,7 @@ from app.models.schemas import (
     MessageRole,
     UserRegister,
     UserLogin,
-    TokenResponse,
-    UserResponse
+    TokenResponse
 )
 from app.services.pdf_service import PDFService
 from app.services.supabase_service import SupabaseService
@@ -249,6 +245,48 @@ async def list_documents(
     except Exception as e:
         logger.error(f"Error listing documents: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error listing documents: {str(e)}")
+
+
+@router.get("/documents/{doc_id}", response_model=DocumentResponse)
+async def get_document(
+    doc_id: str,
+    user_id: str = Depends(get_current_user_id)
+):
+    """
+    Get document details by ID
+
+    Args:
+        doc_id: Document ID
+        user_id: User ID (from JWT)
+
+    Returns:
+        Document details
+    """
+    try:
+        doc = await db_service.get_document(doc_id)
+
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        if doc['user_id'] != user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        return DocumentResponse(
+            id=doc['id'],
+            user_id=doc['user_id'],
+            sha256=doc['sha256'],
+            filename=doc['filename'],
+            status=DocumentStatus(doc['status']),
+            page_count=doc.get('page_count'),
+            created_at=doc['created_at'],
+            updated_at=doc['updated_at']
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting document: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error getting document: {str(e)}")
 
 
 @router.post("/chat", response_model=ChatResponse)
