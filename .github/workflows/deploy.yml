@@ -104,28 +104,25 @@ jobs:
             # Navigate to application directory
             cd ${{ secrets.VPS_APP_PATH || '/opt/chat-pdf' }}
 
-            # Pull latest code
-            git pull origin main
-
             # Log in to GitHub Container Registry
-            echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+            echo ${{ secrets.GITHUB_TOKEN }} | sudo docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
 
             # Pull latest image
-            docker pull ${{ env.REGISTRY }}/${{ github.repository }}:latest
+            sudo docker pull ${{ env.REGISTRY }}/${{ github.repository }}:latest
 
             # Stop and remove old container
-            docker-compose down
+            sudo docker compose down || sudo docker-compose down || true
 
             # Start new container
-            docker-compose up -d
+            sudo docker compose up -d || sudo docker-compose up -d
 
             # Clean up old images
-            docker image prune -af
+            sudo docker image prune -af
 
             # Check deployment status
             sleep 10
-            docker-compose ps
-            docker-compose logs --tail=50
+            sudo docker compose ps || sudo docker-compose ps
+            sudo docker compose logs --tail=50 || sudo docker-compose logs --tail=50
 
       - name: Health Check
         run: |
