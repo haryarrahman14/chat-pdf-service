@@ -100,6 +100,7 @@ jobs:
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
+          command_timeout: 30m
           script: |
             # Navigate to application directory
             cd ${{ secrets.VPS_APP_PATH || '/opt/chat-pdf' }}
