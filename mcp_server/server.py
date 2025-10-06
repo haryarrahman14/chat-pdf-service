@@ -1,6 +1,7 @@
 """MCP Server for Chat PDF"""
 import asyncio
 import json
+import os
 from typing import Any
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
@@ -14,8 +15,52 @@ logger = logging.getLogger(__name__)
 # API base URL (adjust as needed)
 API_BASE_URL = "http://localhost:8000/api"
 
+# Global access token
+ACCESS_TOKEN = None
+
 # Create MCP server
 server = Server("chat-pdf-mcp")
+
+
+async def auto_login():
+    """Auto-login using credentials from environment or config file"""
+    global ACCESS_TOKEN
+
+    # Try environment variables first
+    email = os.getenv("CHAT_PDF_EMAIL")
+    password = os.getenv("CHAT_PDF_PASSWORD")
+
+    # If not in env, try config file
+    if not email or not password:
+        try:
+            config_path = os.path.join(os.path.dirname(__file__), "config.json")
+            with open(config_path) as f:
+                config = json.load(f)
+                email = config.get("email")
+                password = config.get("password")
+        except FileNotFoundError:
+            logger.warning("No config.json found. You can create one with email/password or use environment variables.")
+            return
+        except Exception as e:
+            logger.error(f"Error reading config: {e}")
+            return
+
+    if not email or not password:
+        logger.warning("No credentials found. Please set CHAT_PDF_EMAIL/CHAT_PDF_PASSWORD environment variables or create config.json")
+        return
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{API_BASE_URL}/auth/login",
+                json={"email": email, "password": password}
+            )
+            response.raise_for_status()
+            data = response.json()
+            ACCESS_TOKEN = data["access_token"]
+            logger.info(f"Auto-login successful for user: {data['email']}")
+    except Exception as e:
+        logger.error(f"Auto-login failed: {e}")
 
 
 @server.list_tools()
@@ -28,17 +73,13 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "user_id": {
-                        "type": "string",
-                        "description": "User ID (UUID format)"
-                    },
                     "status": {
                         "type": "string",
                         "description": "Filter by status: pending, processing, ready, failed, or all",
                         "enum": ["pending", "processing", "ready", "failed", "all"]
                     }
                 },
-                "required": ["user_id"]
+                "required": []
             }
         ),
         Tool(
@@ -47,16 +88,12 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "user_id": {
-                        "type": "string",
-                        "description": "User ID (UUID format)"
-                    },
                     "file_path": {
                         "type": "string",
                         "description": "Path to the PDF file to upload"
                     }
                 },
-                "required": ["user_id", "file_path"]
+                "required": ["file_path"]
             }
         ),
         Tool(
@@ -65,10 +102,6 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "user_id": {
-                        "type": "string",
-                        "description": "User ID (UUID format)"
-                    },
                     "question": {
                         "type": "string",
                         "description": "The question to ask"
@@ -83,7 +116,7 @@ async def list_tools() -> list[Tool]:
                         "description": "Optional conversation ID to continue an existing conversation"
                     }
                 },
-                "required": ["user_id", "question", "doc_ids"]
+                "required": ["question", "doc_ids"]
             }
         )
     ]
@@ -114,15 +147,22 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
 
 async def handle_list_docs(arguments: dict) -> list[TextContent]:
     """Handle list_docs tool call"""
-    user_id = arguments.get("user_id")
+    if not ACCESS_TOKEN:
+        return [TextContent(
+            type="text",
+            text="Error: Not authenticated. Please configure credentials."
+        )]
+
     status = arguments.get("status")
 
-    params = {"user_id": user_id}
+    params = {}
     if status and status != "all":
         params["status"] = status
 
+    headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
+
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{API_BASE_URL}/documents", params=params)
+        response = await client.get(f"{API_BASE_URL}/documents", params=params, headers=headers)
         response.raise_for_status()
         data = response.json()
 
@@ -147,7 +187,12 @@ async def handle_list_docs(arguments: dict) -> list[TextContent]:
 
 async def handle_add_doc(arguments: dict) -> list[TextContent]:
     """Handle add_doc tool call"""
-    user_id = arguments.get("user_id")
+    if not ACCESS_TOKEN:
+        return [TextContent(
+            type="text",
+            text="Error: Not authenticated. Please configure credentials."
+        )]
+
     file_path = arguments.get("file_path")
 
     # Read the file
@@ -161,18 +206,17 @@ async def handle_add_doc(arguments: dict) -> list[TextContent]:
         )]
 
     # Get filename from path
-    import os
     filename = os.path.basename(file_path)
 
     # Upload the file
+    headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
     async with httpx.AsyncClient(timeout=60.0) as client:
         files = {"file": (filename, file_content, "application/pdf")}
-        data = {"user_id": user_id}
 
         response = await client.post(
             f"{API_BASE_URL}/upload",
             files=files,
-            data=data
+            headers=headers
         )
         response.raise_for_status()
         result = response.json()
@@ -188,7 +232,12 @@ async def handle_add_doc(arguments: dict) -> list[TextContent]:
 
 async def handle_chat_with_docs(arguments: dict) -> list[TextContent]:
     """Handle chat_with_docs tool call"""
-    user_id = arguments.get("user_id")
+    if not ACCESS_TOKEN:
+        return [TextContent(
+            type="text",
+            text="Error: Not authenticated. Please configure credentials."
+        )]
+
     question = arguments.get("question")
     doc_ids = arguments.get("doc_ids")
     conversation_id = arguments.get("conversation_id")
@@ -200,8 +249,9 @@ async def handle_chat_with_docs(arguments: dict) -> list[TextContent]:
     if conversation_id:
         payload["conversation_id"] = conversation_id
 
+    headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
     async with httpx.AsyncClient(timeout=60.0) as client:
-        response = await client.post(f"{API_BASE_URL}/chat", json=payload)
+        response = await client.post(f"{API_BASE_URL}/chat", json=payload, headers=headers)
         response.raise_for_status()
         data = response.json()
 
@@ -234,6 +284,10 @@ async def handle_chat_with_docs(arguments: dict) -> list[TextContent]:
 async def main():
     """Run the MCP server"""
     logger.info("Starting Chat PDF MCP server...")
+
+    # Perform auto-login
+    await auto_login()
+
     async with stdio_server() as (read_stream, write_stream):
         await server.run(
             read_stream,

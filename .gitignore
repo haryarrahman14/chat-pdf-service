@@ -27,6 +27,9 @@ wheels/
 .env
 .env.local
 
+# MCP Config
+mcp_server/config.json
+
 # IDE
 .vscode/
 .idea/
@@ -52,7 +55,7 @@ Thumbs.db
 htmlcov/
 
 # claude
-.claude
+# .claude
 
 # local docs
 docs/
