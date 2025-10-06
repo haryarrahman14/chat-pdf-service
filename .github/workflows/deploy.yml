@@ -127,8 +127,8 @@ jobs:
 
       - name: Health Check
         run: |
-          sleep 15
-          curl -f ${{ secrets.VPS_URL }}/api/health || exit 1
+          sleep 30
+          curl -f ${{ secrets.VPS_URL }}/health || exit 1
 
   notify:
     name: Send Notification
